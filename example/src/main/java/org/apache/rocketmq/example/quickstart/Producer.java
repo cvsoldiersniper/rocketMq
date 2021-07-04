@@ -31,6 +31,7 @@ public class Producer {
         /*
          * Instantiate with a producer group name.
          */
+        // 1、创建producer对象
         DefaultMQProducer producer = new DefaultMQProducer("please_rename_unique_group_name");
 
         /*
@@ -48,6 +49,7 @@ public class Producer {
         /*
          * Launch the instance.
          */
+        // 2、启动producer对象
         producer.start();
 
         for (int i = 0; i < 1000; i++) {
@@ -64,6 +66,7 @@ public class Producer {
                 /*
                  * Call send message to deliver message to one of brokers.
                  */
+                // 3、producer发送消息
                 SendResult sendResult = producer.send(msg);
 
                 System.out.printf("%s%n", sendResult);

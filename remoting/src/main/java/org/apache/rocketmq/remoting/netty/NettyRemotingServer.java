@@ -179,6 +179,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
             && Epoll.isAvailable();
     }
 
+    //NettyRemotingServer的start()内部主要负责启动Netty的server侧监听。
     @Override
     public void start() {
         this.defaultEventExecutorGroup = new DefaultEventExecutorGroup(
@@ -193,6 +194,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
                 }
             });
 
+        // 初始化NettyRemotingServer的server侧的handler
         prepareSharableHandlers();
 
         ServerBootstrap childHandler =

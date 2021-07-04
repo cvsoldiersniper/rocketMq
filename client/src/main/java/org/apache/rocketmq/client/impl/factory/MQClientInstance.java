@@ -234,8 +234,10 @@ public class MQClientInstance {
                         this.mQClientAPIImpl.fetchNameServerAddr();
                     }
                     // Start request-response channel
+                    //负责启动NettyClient用以通信
                     this.mQClientAPIImpl.start();
                     // Start various schedule tasks
+                    //负责启动各类定时任务
                     this.startScheduledTask();
                     // Start pull service
                     this.pullMessageService.start();
@@ -269,6 +271,7 @@ public class MQClientInstance {
             }, 1000 * 10, 1000 * 60 * 2, TimeUnit.MILLISECONDS);
         }
 
+        //负责更新路由信息，会用于消息的发送。 producer侧的路由同步有两种途径，途径一是在消息发送过程去同步获取路由信息；途径二是通过定时任务同步获取路由信息。
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
@@ -343,7 +346,7 @@ public class MQClientInstance {
             }
         }
 
-        // Producer
+        // Producer producer侧的定时负责收集producer侧的topic生成topicList，遍历topicList同步topic对应的路由信息。
         {
             Iterator<Entry<String, MQProducerInner>> it = this.producerTable.entrySet().iterator();
             while (it.hasNext()) {
@@ -623,6 +626,7 @@ public class MQClientInstance {
                     } else {
                         topicRouteData = this.mQClientAPIImpl.getTopicRouteInfoFromNameServer(topic, 1000 * 3);
                     }
+                    // 解析topicRouteData
                     if (topicRouteData != null) {
                         TopicRouteData old = this.topicRouteTable.get(topic);
                         boolean changed = topicRouteDataIsChange(old, topicRouteData);

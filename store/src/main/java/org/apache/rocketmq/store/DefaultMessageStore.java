@@ -121,25 +121,29 @@ public class DefaultMessageStore implements MessageStore {
         this.messageStoreConfig = messageStoreConfig;
         this.brokerStatsManager = brokerStatsManager;
         this.allocateMappedFileService = new AllocateMappedFileService(this);
+        // 核心对象CommitLog,用于消息存储对象
         if (messageStoreConfig.isEnableDLegerCommitLog()) {
             this.commitLog = new DLedgerCommitLog(this);
         } else {
             this.commitLog = new CommitLog(this);
         }
+        // 核心对象consumeQueue consumeQueueTable用于存储consumeQueue
         this.consumeQueueTable = new ConcurrentHashMap<>(32);
 
         this.flushConsumeQueueService = new FlushConsumeQueueService();
         this.cleanCommitLogService = new CleanCommitLogService();
         this.cleanConsumeQueueService = new CleanConsumeQueueService();
         this.storeStatsService = new StoreStatsService();
+        // 核心服务IndexService indexService负责建立消息的索引。
         this.indexService = new IndexService(this);
         if (!messageStoreConfig.isEnableDLegerCommitLog()) {
             this.haService = new HAService(this);
         } else {
             this.haService = null;
         }
+        // 核心服务ReputMessageService，负责commitLog和consumer queue之间的索引同步
         this.reputMessageService = new ReputMessageService();
-
+        // 核心服务ScheduleMessageService，负责延迟消息
         this.scheduleMessageService = new ScheduleMessageService(this);
 
         this.transientStorePool = new TransientStorePool(messageStoreConfig);

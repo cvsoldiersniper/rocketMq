@@ -48,9 +48,12 @@ public class NamesrvController {
 
     private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryImpl(
         "NSScheduledThread"));
+    //KVConfigManager保存namesrv的KV配置信息。
     private final KVConfigManager kvConfigManager;
+    //RouteInfoManager保存topic和broker的相关的路由信息
     private final RouteInfoManager routeInfoManager;
 
+    // remotingServer是NettyRemotingServer类型
     private RemotingServer remotingServer;
 
     private BrokerHousekeepingService brokerHousekeepingService;
@@ -77,13 +80,17 @@ public class NamesrvController {
 
         this.kvConfigManager.load();
 
+        // 创建NettyRemotingServer对象
         this.remotingServer = new NettyRemotingServer(this.nettyServerConfig, this.brokerHousekeepingService);
 
+        // 创建线程池remotingExecutor对象
         this.remotingExecutor =
             Executors.newFixedThreadPool(nettyServerConfig.getServerWorkerThreads(), new ThreadFactoryImpl("RemotingExecutorThread_"));
 
+        // 注册Namesrv的处理Processor对象
         this.registerProcessor();
 
+        // 启动Broker存活扫描线程任务
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
@@ -92,6 +99,7 @@ public class NamesrvController {
             }
         }, 5, 10, TimeUnit.SECONDS);
 
+        // 启动定时打印配置的线程任务
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
@@ -153,6 +161,7 @@ public class NamesrvController {
     }
 
     public void start() throws Exception {
+       //NamesrvController的start()方法执行的是NettyRemotingServer的start()方法
         this.remotingServer.start();
 
         if (this.fileWatchService != null) {

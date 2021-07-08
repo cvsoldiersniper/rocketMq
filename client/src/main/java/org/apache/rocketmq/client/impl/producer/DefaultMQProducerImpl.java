@@ -543,6 +543,24 @@ public class DefaultMQProducerImpl implements MQProducerInner {
 
     }
 
+    /**
+     * Message的消息体格式源码格式如上所示。
+     * DefaultMQProducerImpl#sendDefaultImpl负责执行发送消息并解析发送结果。
+     * 发送过程第一步：TopicPublishInfo topicPublishInfo查询topic信息。
+     * 发送过程第二步：selectOneMessageQueue负责选择其中一个MessageQueue队列。
+     * 发送过程第三步：调用DefaultMQProducerImpl#sendKernelImpl发送消息。
+     * 发送过程第四步：根据发送模式communicationMode的不同执行不同的结果返回逻辑。
+     *
+     * @param msg
+     * @param communicationMode
+     * @param sendCallback
+     * @param timeout
+     * @return
+     * @throws MQClientException
+     * @throws RemotingException
+     * @throws MQBrokerException
+     * @throws InterruptedException
+     */
     private SendResult sendDefaultImpl(
         Message msg,
         final CommunicationMode communicationMode,
@@ -555,7 +573,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         long beginTimestampFirst = System.currentTimeMillis();
         long beginTimestampPrev = beginTimestampFirst;
         long endTimestamp = beginTimestampFirst;
-        // 尝试获取topic路由信息
+        // 1、查找TopicPublishInfo信息
         TopicPublishInfo topicPublishInfo = this.tryToFindTopicPublishInfo(msg.getTopic());
         if (topicPublishInfo != null && topicPublishInfo.ok()) {
             boolean callTimeout = false;
@@ -565,8 +583,10 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             int timesTotal = communicationMode == CommunicationMode.SYNC ? 1 + this.defaultMQProducer.getRetryTimesWhenSendFailed() : 1;
             int times = 0;
             String[] brokersSent = new String[timesTotal];
+            // 2、按照重试次数进行发送
             for (; times < timesTotal; times++) {
                 String lastBrokerName = null == mq ? null : mq.getBrokerName();
+                // 3、选择MessageQueue对象 ,producer端实现负载均衡
                 MessageQueue mqSelected = this.selectOneMessageQueue(topicPublishInfo, lastBrokerName);
                 if (mqSelected != null) {
                     mq = mqSelected;
@@ -583,6 +603,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                             break;
                         }
 
+                        // 4、通过sendKernelImpl发送消息
                         sendResult = this.sendKernelImpl(msg, mq, communicationMode, sendCallback, topicPublishInfo, timeout - costTime);
                         endTimestamp = System.currentTimeMillis();
                         this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, false);
@@ -688,6 +709,17 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             null).setResponseCode(ClientErrorCode.NOT_FOUND_TOPIC_EXCEPTION);
     }
 
+    /**
+     * 首先从变量ConcurrentMap<String/ topic /, TopicPublishInfo> topicPublishInfoTable中获取是否存在指定topic的路由信息，
+     * 如果获取不到则使用topic去nameServer获取路由信息，如果还是获取不到则使用默认的topic名称为"TBW102"去获取路由信息，
+     * 需要使用默认名称去获取的情况是没有创建topic，需要broker自动创建topic的情况；
+     * 获取路由信息使用的是MQClientInstance中的updateTopicRouteInfoFromNameServer方法，
+     * 此方法根据topic获取路由信息，具体连接哪台nameServer，会从列表中顺序的选择nameServer，实现负载均衡；
+     *
+     * 注：名称为"TBW102"的topic是系统自动创建的；
+     * @param topic
+     * @return
+     */
     private TopicPublishInfo tryToFindTopicPublishInfo(final String topic) {
         TopicPublishInfo topicPublishInfo = this.topicPublishInfoTable.get(topic);
         if (null == topicPublishInfo || !topicPublishInfo.ok()) {
@@ -782,6 +814,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                     this.executeSendMessageHookBefore(context);
                 }
 
+                // 组装消息体头部SendMessageRequestHeader
                 SendMessageRequestHeader requestHeader = new SendMessageRequestHeader();
                 requestHeader.setProducerGroup(this.defaultMQProducer.getProducerGroup());
                 requestHeader.setTopic(msg.getTopic());
@@ -835,6 +868,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                         if (timeout < costTimeAsync) {
                             throw new RemotingTooMuchRequestException("sendKernelImpl call timeout");
                         }
+                        //发送消息
                         sendResult = this.mQClientFactory.getMQClientAPIImpl().sendMessage(
                             brokerAddr,
                             mq.getBrokerName(),

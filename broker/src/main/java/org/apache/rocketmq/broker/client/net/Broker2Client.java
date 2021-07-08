@@ -80,6 +80,10 @@ public class Broker2Client {
         return this.brokerController.getRemotingServer().invokeSync(channel, request, 10000);
     }
 
+    /**
+     * 针对CHANGE事件，brokerController.getBroker2Client().notifyConsumerIdsChanged 通知client进行rebalance。
+     * 由ClientRemotingProcessor处理rebalace
+     */
     public void notifyConsumerIdsChanged(
         final Channel channel,
         final String consumerGroup) {

@@ -27,6 +27,11 @@ import org.apache.rocketmq.common.ServiceThread;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.common.utils.ThreadUtils;
 
+/**
+ * PullMessageService是个单线程任务，实现生产者消费者模型。
+ * executePullRequestImmediately负责往队列添加PullRequest，run()负责获取PullRequest对象负责拉取消息。
+ * pullMessage负责执行单个PullRequest的数据拉取。
+ */
 public class PullMessageService extends ServiceThread {
     private final InternalLogger log = ClientLogger.getLog();
     private final LinkedBlockingQueue<PullRequest> pullRequestQueue = new LinkedBlockingQueue<PullRequest>();
@@ -56,6 +61,7 @@ public class PullMessageService extends ServiceThread {
         }
     }
 
+    //executePullRequestImmediately负责往队列添加PullRequest， 生产者
     public void executePullRequestImmediately(final PullRequest pullRequest) {
         try {
             this.pullRequestQueue.put(pullRequest);
@@ -86,6 +92,8 @@ public class PullMessageService extends ServiceThread {
         }
     }
 
+
+    //负责获取PullRequest对象负责拉取消息。消费者
     @Override
     public void run() {
         log.info(this.getServiceName() + " service started");

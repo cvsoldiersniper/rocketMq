@@ -23,6 +23,9 @@ import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.common.protocol.route.QueueData;
 import org.apache.rocketmq.common.protocol.route.TopicRouteData;
 
+/**
+ * TopicPublishInfo用以保存最细粒度的queue对象，由messageQueueList来保存
+ */
 public class TopicPublishInfo {
     private boolean orderTopic = false;
     private boolean haveTopicRouterInfo = false;
@@ -66,6 +69,11 @@ public class TopicPublishInfo {
         this.haveTopicRouterInfo = haveTopicRouterInfo;
     }
 
+    /**
+     * 默认的负载均衡策略是轮询
+     * @param lastBrokerName
+     * @return
+     */
     public MessageQueue selectOneMessageQueue(final String lastBrokerName) {
         if (lastBrokerName == null) {
             return selectOneMessageQueue();

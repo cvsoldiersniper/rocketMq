@@ -113,6 +113,10 @@ public class ConsumerGroupInfo {
         return false;
     }
 
+    /**
+     * channelInfoTable保存ClientChannelInfo信息。
+     * updateChannel更新ClientChannelInfo信息。
+     */
     public boolean updateChannel(final ClientChannelInfo infoNew, ConsumeType consumeType,
         MessageModel messageModel, ConsumeFromWhere consumeFromWhere) {
         boolean updated = false;
@@ -146,6 +150,10 @@ public class ConsumerGroupInfo {
         return updated;
     }
 
+    /**
+     * subscriptionTable保存的是以topic为维度的订阅信息SubscriptionData。
+     * updateSubscription负责更新指定topic的Subscription信息。
+     */
     public boolean updateSubscription(final Set<SubscriptionData> subList) {
         boolean updated = false;
 

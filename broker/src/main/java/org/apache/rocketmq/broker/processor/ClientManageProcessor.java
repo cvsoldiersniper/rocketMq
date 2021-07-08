@@ -72,6 +72,12 @@ public class ClientManageProcessor extends AsyncNettyRequestProcessor implements
         return false;
     }
 
+    /**
+     * broker侧的ClientManageProcessor#heartBeat负责处理心跳注册信息。
+     * 1、ClientManageProcessor#heartBeat创建%RETRY%consumer_group的topic信息。
+     * 2、ClientManageProcessor#heartBeat通过registerConsumer注册consumer信息。
+     * 3、ClientManageProcessor#heartBeat通过registerProducer注册producer信息。
+     */
     public RemotingCommand heartBeat(ChannelHandlerContext ctx, RemotingCommand request) {
         RemotingCommand response = RemotingCommand.createResponseCommand(null);
         HeartbeatData heartbeatData = HeartbeatData.decode(request.getBody(), HeartbeatData.class);
@@ -93,13 +99,17 @@ public class ClientManageProcessor extends AsyncNettyRequestProcessor implements
                 if (data.isUnitMode()) {
                     topicSysFlag = TopicSysFlag.buildSysFlag(false, true);
                 }
+                // 重试队列是以consumer group为维度的，创建重试队列topic信息
+                // topic名的格式为%RETRY%consumer_group
                 String newTopic = MixAll.getRetryTopic(data.getGroupName());
+                // 创建重试队列对应的topic=%RETRY%consumer_group
                 this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(
                     newTopic,
                     subscriptionGroupConfig.getRetryQueueNums(),
                     PermName.PERM_WRITE | PermName.PERM_READ, topicSysFlag);
             }
 
+            // 注册consumer信息
             boolean changed = this.brokerController.getConsumerManager().registerConsumer(
                 data.getGroupName(),
                 clientChannelInfo,
@@ -118,6 +128,7 @@ public class ClientManageProcessor extends AsyncNettyRequestProcessor implements
             }
         }
 
+        // 注册producer信息
         for (ProducerData data : heartbeatData.getProducerDataSet()) {
             this.brokerController.getProducerManager().registerProducer(data.getGroupName(),
                 clientChannelInfo);

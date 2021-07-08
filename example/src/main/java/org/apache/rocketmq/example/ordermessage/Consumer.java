@@ -35,6 +35,7 @@ public class Consumer {
 
         consumer.subscribe("TopicTest", "TagA || TagC || TagD");
 
+//        Listener对象为MessageListenerOrderly
         consumer.registerMessageListener(new MessageListenerOrderly() {
             AtomicLong consumeTimes = new AtomicLong(0);
 

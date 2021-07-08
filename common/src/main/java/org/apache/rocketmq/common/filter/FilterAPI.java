@@ -36,6 +36,17 @@ public class FilterAPI {
         return simple;
     }
 
+    /**
+     * SubscriptionData的数据结构主要包含topic、subString、tags等信息。
+     * FilterAPI#buildSubscriptionData负责提供构建方法，不传tags默认表示订阅所有tags。
+     *
+     *
+     * @param consumerGroup
+     * @param topic
+     * @param subString
+     * @return
+     * @throws Exception
+     */
     public static SubscriptionData buildSubscriptionData(final String consumerGroup, String topic,
         String subString) throws Exception {
         SubscriptionData subscriptionData = new SubscriptionData();

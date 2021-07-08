@@ -446,9 +446,12 @@ public class MQClientAPIImpl {
         final DefaultMQProducerImpl producer
     ) throws RemotingException, MQBrokerException, InterruptedException {
         long beginStartTime = System.currentTimeMillis();
+
+        // 1、组装RemotingCommand对象
         RemotingCommand request = null;
         String msgType = msg.getProperty(MessageConst.PROPERTY_MESSAGE_TYPE);
         boolean isReply = msgType != null && msgType.equals(MixAll.REPLY_MESSAGE_FLAG);
+        // 根据不同类型组装不同的RemotingCommand
         if (isReply) {
             if (sendSmartMsg) {
                 SendMessageRequestHeaderV2 requestHeaderV2 = SendMessageRequestHeaderV2.createSendMessageRequestHeaderV2(requestHeader);
@@ -466,6 +469,7 @@ public class MQClientAPIImpl {
         }
         request.setBody(msg.getBody());
 
+        // 发送消息，根据SYNC、ASYNC、ONEWAY分别调用不同接口
         switch (communicationMode) {
             case ONEWAY:
                 this.remotingClient.invokeOneway(addr, request, timeoutMillis);
@@ -749,8 +753,10 @@ public class MQClientAPIImpl {
                 RemotingCommand response = responseFuture.getResponseCommand();
                 if (response != null) {
                     try {
+                        // 解析消息拉取结果
                         PullResult pullResult = MQClientAPIImpl.this.processPullResponse(response);
                         assert pullResult != null;
+                        // 调用回调函数进行处理
                         pullCallback.onSuccess(pullResult);
                     } catch (Exception e) {
                         pullCallback.onException(e);
@@ -1014,6 +1020,10 @@ public class MQClientAPIImpl {
         this.remotingClient.invokeOneway(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr), request, timeoutMillis);
     }
 
+    /**
+     * MQClientAPIImpl#sendHearbeat负责创建HEART_BEAT类型的RemotingCommand并发送到broker当中。
+     * 发送心跳后，由broker的ClientManageProcessor 负责处理心跳消息
+     */
     public int sendHearbeat(
         final String addr,
         final HeartbeatData heartbeatData,

@@ -159,6 +159,17 @@ public class MQClientInstance {
             MQVersion.getVersionDesc(MQVersion.CURRENT_VERSION), RemotingCommand.getSerializeTypeConfigInThisServer());
     }
 
+    /**
+     * topic路由信息解析
+     *
+     * topic路由信息的解析按照以下步骤进行，根据brokerName先排序，针对排序后的QueueData以写队列的个数来构建MessageQueue。
+     * Collections.sort(qds)按照brokerName来进行排序。
+     * new MessageQueue(topic, qd.getBrokerName(), i) 针对每个brokerName下的队列个数构建MessageQueue。
+     *
+     * @param topic
+     * @param route
+     * @return
+     */
     public static TopicPublishInfo topicRouteData2TopicPublishInfo(final String topic, final TopicRouteData route) {
         TopicPublishInfo info = new TopicPublishInfo();
         info.setTopicRouteData(route);
@@ -176,10 +187,14 @@ public class MQClientInstance {
             info.setOrderTopic(true);
         } else {
             List<QueueData> qds = route.getQueueDatas();
+            //// 按照brokerName进行排序
             Collections.sort(qds);
+            // 遍历所有broker生成队列维度信息
             for (QueueData qd : qds) {
+                // 具备写能力的QueueData能够用于队列生成
                 if (PermName.isWriteable(qd.getPerm())) {
                     BrokerData brokerData = null;
+                    // 遍历brokerDatas查找该topic下的brokerData
                     for (BrokerData bd : route.getBrokerDatas()) {
                         if (bd.getBrokerName().equals(qd.getBrokerName())) {
                             brokerData = bd;
@@ -195,6 +210,8 @@ public class MQClientInstance {
                         continue;
                     }
 
+                    // 遍历QueueData的写队列数，生成MessageQueue，
+                    // 并添加TopicPublishInfo用以生成该topic的TopicPublishInfo
                     for (int i = 0; i < qd.getWriteQueueNums(); i++) {
                         MessageQueue mq = new MessageQueue(topic, qd.getBrokerName(), i);
                         info.getMessageQueueList().add(mq);
@@ -240,8 +257,10 @@ public class MQClientInstance {
                     //负责启动各类定时任务
                     this.startScheduledTask();
                     // Start pull service
+                    //负责启动consumer的消息拉取服务
                     this.pullMessageService.start();
                     // Start rebalance service
+                    //负责启动consumer的重平衡服务
                     this.rebalanceService.start();
                     // Start push service
                     this.defaultMQProducer.getDefaultMQProducerImpl().start(false);
@@ -532,7 +551,14 @@ public class MQClientInstance {
         return false;
     }
 
+    /**
+     * MQClientInstance发送心跳信息包括组装信息和发送信息两个步骤。
+     * prepareHeartbeatData 负责组装心跳注册信息。
+     * sendHeartbeatToAllBroker负责将心跳注册信息发送给所有的broker信息
+     *
+     */
     private void sendHeartbeatToAllBroker() {
+        // prepareHeartbeatData 负责组装心跳注册信息
         final HeartbeatData heartbeatData = this.prepareHeartbeatData();
         final boolean producerEmpty = heartbeatData.getProducerDataSet().isEmpty();
         final boolean consumerEmpty = heartbeatData.getConsumerDataSet().isEmpty();
@@ -543,6 +569,7 @@ public class MQClientInstance {
 
         if (!this.brokerAddrTable.isEmpty()) {
             long times = this.sendHeartbeatTimesTotal.getAndIncrement();
+            // 遍历所有的brokerAddrTable依次通知
             Iterator<Entry<String, HashMap<Long, String>>> it = this.brokerAddrTable.entrySet().iterator();
             while (it.hasNext()) {
                 Entry<String, HashMap<Long, String>> entry = it.next();
@@ -559,6 +586,7 @@ public class MQClientInstance {
                             }
 
                             try {
+                                // 获取broker地址后发送消息
                                 int version = this.mQClientAPIImpl.sendHearbeat(addr, heartbeatData, 3000);
                                 if (!this.brokerVersionTable.containsKey(brokerName)) {
                                     this.brokerVersionTable.put(brokerName, new HashMap<String, Integer>(4));
@@ -873,6 +901,12 @@ public class MQClientInstance {
         }
     }
 
+    /**
+     * MQClientInstance的consumerTable通过registerConsumer方法来注册consumer group和对应的DefaultMQPushConsumerImpl对象。
+     * @param group
+     * @param consumer
+     * @return
+     */
     public boolean registerConsumer(final String group, final MQConsumerInner consumer) {
         if (null == group || null == consumer) {
             return false;
@@ -978,6 +1012,10 @@ public class MQClientInstance {
         this.rebalanceService.wakeup();
     }
 
+    /**
+     * MQClientInstance#doRebalance遍历所有consumer group，依次调用DefaultMQPushConsumerImpl#doRebalance来实现consumer的重平衡过程。
+     *
+     */
     public void doRebalance() {
         for (Map.Entry<String, MQConsumerInner> entry : this.consumerTable.entrySet()) {
             MQConsumerInner impl = entry.getValue();
@@ -1078,6 +1116,13 @@ public class MQClientInstance {
         return 0;
     }
 
+    /**
+     * ConsumerIdList的获取是随机选择一台broker进行通信，从broker中获取该consumerGroup对应的consumers。
+     * ConsumerIdList是从broker当中获取的，保存在broker当中，而非namesrv
+     * @param topic
+     * @param group
+     * @return
+     */
     public List<String> findConsumerIdList(final String topic, final String group) {
         String brokerAddr = this.findBrokerAddrByTopic(topic);
         if (null == brokerAddr) {

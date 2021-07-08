@@ -23,6 +23,9 @@ import java.util.List;
 import java.util.Random;
 import org.apache.rocketmq.common.MixAll;
 
+/**
+ * BrokerData保存brokerName对应的ip:port地址
+ */
 public class BrokerData implements Comparable<BrokerData> {
     private String cluster;
     private String brokerName;

@@ -139,7 +139,8 @@ public class PullAPIWrapper {
             }
         }
     }
-
+//pullKernelImpl查找brokerAddr，封装PullMessageRequestHeader对象。
+//pullKernelImpl内部调用MQClientAPIImpl#pullMessage。
     public PullResult pullKernelImpl(
         final MessageQueue mq,
         final String subExpression,

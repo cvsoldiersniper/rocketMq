@@ -475,6 +475,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
                 }
 
                 if (createNewConnection) {
+                    // 通过NettyClient的bootstrap来建立链接
                     ChannelFuture channelFuture = this.bootstrap.connect(RemotingHelper.string2SocketAddress(addr));
                     log.info("createChannel: begin to connect remote host[{}] asynchronously", addr);
                     cw = new ChannelWrapper(channelFuture);
@@ -535,6 +536,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
     @Override
     public void invokeOneway(String addr, RemotingCommand request, long timeoutMillis) throws InterruptedException,
         RemotingConnectException, RemotingTooMuchRequestException, RemotingTimeoutException, RemotingSendRequestException {
+        // 根据broker的address来获取Channel通道
         final Channel channel = this.getAndCreateChannel(addr);
         if (channel != null && channel.isActive()) {
             try {

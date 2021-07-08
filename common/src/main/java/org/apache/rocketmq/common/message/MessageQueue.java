@@ -18,6 +18,9 @@ package org.apache.rocketmq.common.message;
 
 import java.io.Serializable;
 
+/**
+ * MessageQueue保存producer发送消息时候需要选择具体的最细粒度的队列
+ */
 public class MessageQueue implements Comparable<MessageQueue>, Serializable {
     private static final long serialVersionUID = 6191200464116433425L;
     private String topic;

@@ -35,6 +35,7 @@ public class Consumer {
         /*
          * Instantiate with specified consumer group name.
          */
+        // 1、创建DefaultMQPushConsumer对象
         DefaultMQPushConsumer consumer = new DefaultMQPushConsumer("please_rename_unique_group_name_4");
 
         /*
@@ -52,16 +53,19 @@ public class Consumer {
         /*
          * Specify where to start in case the specified consumer group is a brand new one.
          */
+        // 2、设置消费位移
         consumer.setConsumeFromWhere(ConsumeFromWhere.CONSUME_FROM_FIRST_OFFSET);
 
         /*
          * Subscribe one more more topics to consume.
          */
+        // 3、订阅topic
         consumer.subscribe("TopicTest", "*");
 
         /*
          *  Register callback to execute on arrival of messages fetched from brokers.
          */
+        // 4、设置消费回调
         consumer.registerMessageListener(new MessageListenerConcurrently() {
 
             @Override
@@ -75,6 +79,7 @@ public class Consumer {
         /*
          *  Launch the consumer instance.
          */
+        // 5、启动DefaultMQPushConsumer
         consumer.start();
 
         System.out.printf("Consumer Started.%n");

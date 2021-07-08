@@ -90,6 +90,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
             this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
                 @Override
                 public void run() {
+//                    提交Runnable任务[lockMQPeriodically]执行周期性锁MessageQueue
                     ConsumeMessageOrderlyService.this.lockMQPeriodically();
                 }
             }, 1000 * 1, ProcessQueue.REBALANCE_LOCK_INTERVAL, TimeUnit.MILLISECONDS);
@@ -200,6 +201,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
         final boolean dispathToConsume) {
         if (dispathToConsume) {
             ConsumeRequest consumeRequest = new ConsumeRequest(processQueue, messageQueue);
+            //通过consumeExecutor.submit(consumeRequest)执行consumeRequest任务。
             this.consumeExecutor.submit(consumeRequest);
         }
     }
@@ -258,6 +260,10 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
         }, timeMillis, TimeUnit.MILLISECONDS);
     }
 
+    /**
+     * 1、processConsumeResult会执行ProcessQueue#commit方法。
+     * 2、执行getOffsetStore().updateOffset()会更新消费位移。
+     */
     public boolean processConsumeResult(
         final List<MessageExt> msgs,
         final ConsumeOrderlyStatus status,
@@ -394,6 +400,12 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
         }
     }
 
+    /**
+     * ConsumeRequest的run方法用于任务的实际执行。
+     * 广播模式或者未加锁的情况下重新提交下次消费处理，只有在成功加锁的情况下才能消费消息。
+     * 消费消息的过程按照 加锁、调用consumer回调消费消息、解锁 的流程进行操作。
+     * 待消费的消息会从ProcessQueue中的msgTreeMap移到consumingMsgOrderlyTreeMap。
+     */
     class ConsumeRequest implements Runnable {
         private final ProcessQueue processQueue;
         private final MessageQueue messageQueue;
@@ -418,10 +430,12 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                 return;
             }
 
+            // 通过objLock来保证线程安全
             final Object objLock = messageQueueLock.fetchLockObject(this.messageQueue);
             synchronized (objLock) {
                 if (MessageModel.BROADCASTING.equals(ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.messageModel())
                     || (this.processQueue.isLocked() && !this.processQueue.isLockExpired())) {
+                    // 真正执行消费消息逻辑
                     final long beginTime = System.currentTimeMillis();
                     for (boolean continueConsume = true; continueConsume; ) {
                         if (this.processQueue.isDropped()) {
@@ -429,6 +443,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                             break;
                         }
 
+                        // 集群模式或者未加锁的情况下重新提交下次消费处理
                         if (MessageModel.CLUSTERING.equals(ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.messageModel())
                             && !this.processQueue.isLocked()) {
                             log.warn("the message queue not locked, so consume later, {}", this.messageQueue);
@@ -436,6 +451,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                             break;
                         }
 
+                        // 集群模式或者锁过期的情况下重新提交下次消费处理
                         if (MessageModel.CLUSTERING.equals(ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.messageModel())
                             && this.processQueue.isLockExpired()) {
                             log.warn("the message queue lock expired, so consume later, {}", this.messageQueue);
@@ -443,6 +459,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                             break;
                         }
 
+                        //时间间隔超过1分钟
                         long interval = System.currentTimeMillis() - beginTime;
                         if (interval > MAX_TIME_CONSUME_CONTINUOUSLY) {
                             ConsumeMessageOrderlyService.this.submitConsumeRequestLater(processQueue, messageQueue, 10);
@@ -452,6 +469,8 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                         final int consumeBatchSize =
                             ConsumeMessageOrderlyService.this.defaultMQPushConsumer.getConsumeMessageBatchMaxSize();
 
+                        // 获取本次拉取的消息msgs并重新设置topic为重试队列
+                        // takeMessags会把msgTreeMap的消息移动到consumingMsgOrderlyTreeMap当中
                         List<MessageExt> msgs = this.processQueue.takeMessags(consumeBatchSize);
                         defaultMQPushConsumerImpl.resetRetryAndNamespace(msgs, defaultMQPushConsumer.getConsumerGroup());
                         if (!msgs.isEmpty()) {
@@ -477,6 +496,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                             ConsumeReturnType returnType = ConsumeReturnType.SUCCESS;
                             boolean hasException = false;
                             try {
+                                // 加锁操作
                                 this.processQueue.getLockConsume().lock();
                                 if (this.processQueue.isDropped()) {
                                     log.warn("consumeMessage, the message queue not be able to consume, because it's dropped. {}",
@@ -484,6 +504,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                                     break;
                                 }
 
+                                // 执行consumer侧的消费回调
                                 status = messageListener.consumeMessage(Collections.unmodifiableList(msgs), context);
                             } catch (Throwable e) {
                                 log.warn("consumeMessage exception: {} Group: {} Msgs: {} MQ: {}",
@@ -493,6 +514,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                                     messageQueue);
                                 hasException = true;
                             } finally {
+                                // 解锁操作
                                 this.processQueue.getLockConsume().unlock();
                             }
 

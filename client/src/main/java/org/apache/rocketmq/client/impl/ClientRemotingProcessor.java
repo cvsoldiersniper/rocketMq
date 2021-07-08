@@ -138,6 +138,7 @@ public class ClientRemotingProcessor extends AsyncNettyRequestProcessor implemen
             log.info("receive broker's notification[{}], the consumer group: {} changed, rebalance immediately",
                 RemotingHelper.parseChannelRemoteAddr(ctx.channel()),
                 requestHeader.getConsumerGroup());
+            // 立即开启rebalance
             this.mqClientFactory.rebalanceImmediately();
         } catch (Exception e) {
             log.error("notifyConsumerIdsChanged exception", RemotingHelper.exceptionSimpleDesc(e));

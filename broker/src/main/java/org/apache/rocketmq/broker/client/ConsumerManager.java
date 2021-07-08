@@ -95,6 +95,13 @@ public class ConsumerManager {
         }
     }
 
+    /**
+     * 1、consumerTable变量保存consumer group对应的ConsumerGroupInfo。
+     * 2、registerConsumer更新clientChannelInfo信息。
+     * 3、registerConsumer更新SubscriptionData的订阅信息
+     * 4、registerConsumer处理CHANGE类型事件。
+     * 5、registerConsumer处理REGISTER类型事件。
+     */
     public boolean registerConsumer(final String group, final ClientChannelInfo clientChannelInfo,
         ConsumeType consumeType, MessageModel messageModel, ConsumeFromWhere consumeFromWhere,
         final Set<SubscriptionData> subList, boolean isNotifyConsumerIdsChangedEnable) {
@@ -106,17 +113,21 @@ public class ConsumerManager {
             consumerGroupInfo = prev != null ? prev : tmp;
         }
 
+        // 1、更新clientChannelInfo信息
         boolean r1 =
             consumerGroupInfo.updateChannel(clientChannelInfo, consumeType, messageModel,
                 consumeFromWhere);
+        // 2、更新SubscriptionData的订阅信息
         boolean r2 = consumerGroupInfo.updateSubscription(subList);
 
         if (r1 || r2) {
             if (isNotifyConsumerIdsChangedEnable) {
+                // 3、处理CHANGE事件
                 this.consumerIdsChangeListener.handle(ConsumerGroupEvent.CHANGE, group, consumerGroupInfo.getAllChannel());
             }
         }
 
+        // 4、注册REGISTER事件
         this.consumerIdsChangeListener.handle(ConsumerGroupEvent.REGISTER, group, subList);
 
         return r1 || r2;

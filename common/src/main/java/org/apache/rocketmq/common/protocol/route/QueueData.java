@@ -20,6 +20,9 @@
  */
 package org.apache.rocketmq.common.protocol.route;
 
+/**
+ * QueueData保存topic下所有broker信息，表明topic在broker节点上队列信息
+ */
 public class QueueData implements Comparable<QueueData> {
     private String brokerName;
     private int readQueueNums;

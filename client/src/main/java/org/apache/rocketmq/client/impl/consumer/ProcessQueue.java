@@ -182,6 +182,13 @@ public class ProcessQueue {
         return 0;
     }
 
+    /**
+     *
+     ProcessQueue核心数据为msgTreeMap，其中key为消息的queueOffset，value为消息体。
+     msgTreeMap的数据结构为TreeMap，是个有序map。
+     removeMessage每次会从msgTreeMap移除已经成功消费的消息，然后获取msgTreeMap中的最小queueOffset，也就是成功处理的最小queueOffset。
+     通过针对msgTreeMap对象的维护，保证了消息消费的位移的持久化。
+     */
     public long removeMessage(final List<MessageExt> msgs) {
         long result = -1;
         final long now = System.currentTimeMillis();
@@ -257,6 +264,7 @@ public class ProcessQueue {
         }
     }
 
+//    commit负责从consumingMsgOrderlyTreeMap清除消息并返回最后一个消息的位移offset+1
     public long commit() {
         try {
             this.lockTreeMap.writeLock().lockInterruptibly();
@@ -296,6 +304,7 @@ public class ProcessQueue {
         }
     }
 
+//    takeMessags负责从msgTreeMap移动消息到consumingMsgOrderlyTreeMap。
     public List<MessageExt> takeMessags(final int batchSize) {
         List<MessageExt> result = new ArrayList<MessageExt>(batchSize);
         final long now = System.currentTimeMillis();

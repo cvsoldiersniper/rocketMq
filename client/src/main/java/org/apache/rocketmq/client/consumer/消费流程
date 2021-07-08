@@ -1,0 +1,7 @@
+https://upload-images.jianshu.io/upload_images/6302559-40c5d02b59f03121.jpg
+
+
+封装消息拉取请求为PullRequest提交PullMessageService#pullRequestQueue。
+PullMessageService单线程处理消息拉取任务PullRequest。
+PullMessageService的消息拉取结果封装成ConsumeRequest。
+ConsumeMessageConcurrentlyService#consumeExecutor负责执行ConsumeRequest对象。

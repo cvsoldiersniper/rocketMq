@@ -1,0 +1,11 @@
+https://upload-images.jianshu.io/upload_images/6302559-659370287cc5bbb1.jpg
+
+
+
+producer消息发送流程依次执行DefaultMQProducerImpl、MQClientAPIImpl、NettyRemotingClient来实现消息发送。
+
+DefaultMQProducerImpl负责选择指定的MessageQueue进行发送，封装了MessageQueue的选择以及发送失败的重试。
+
+MQClientAPIImpl提供同步发送sendMessageSync、异步发送sendMessageAsync、单向发送invokeOneway。
+
+MQClientAPIImpl最终通过NettyRemotingClient来实现消息发送。

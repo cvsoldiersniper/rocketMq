@@ -211,6 +211,9 @@ public class RebalancePushImpl extends RebalanceImpl {
         return result;
     }
 
+    /**
+     * RebalancePushImpl#dispatchPullRequest负责向PullMessageService的pullRequestQueue投递任务。
+     */
     @Override
     public void dispatchPullRequest(List<PullRequest> pullRequestList) {
         for (PullRequest pullRequest : pullRequestList) {

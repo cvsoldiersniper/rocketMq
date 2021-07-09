@@ -776,6 +776,15 @@ public class CommitLog {
 
     }
 
+    /**
+     * 针对延迟消息进行额外处理、设置topic和queueId。
+     * 通过mappedFileQueue获取最新的MappedFile文件，如果不存在会新建MappedFile对象。
+     * 加锁准备写入消息。
+     * 通过mappedFile.appendMessage将消息添加到mappedFile当中，参数当中的回调函数是DefaultAppendMessageCallback。
+     * CommitLog保存着MappedFileQueue对象。
+     * CommitLog写入消息后handleDiskFlush执行刷新操作。
+     *
+     */
     public PutMessageResult putMessage(final MessageExtBrokerInner msg) {
         // Set the storage time
         msg.setStoreTimestamp(System.currentTimeMillis());
@@ -790,6 +799,7 @@ public class CommitLog {
         String topic = msg.getTopic();
         int queueId = msg.getQueueId();
 
+        // 针对非事务消息以及事务提交消息进行处理
         final int tranType = MessageSysFlag.getTransactionValue(msg.getSysFlag());
         if (tranType == MessageSysFlag.TRANSACTION_NOT_TYPE
             || tranType == MessageSysFlag.TRANSACTION_COMMIT_TYPE) {
@@ -799,6 +809,7 @@ public class CommitLog {
                     msg.setDelayTimeLevel(this.defaultMessageStore.getScheduleMessageService().getMaxDelayLevel());
                 }
 
+                // 针对延迟消息进行额外处理、设置topic和queueId
                 topic = ScheduleMessageService.SCHEDULE_TOPIC;
                 queueId = ScheduleMessageService.delayLevel2QueueId(msg.getDelayTimeLevel());
 
@@ -825,8 +836,10 @@ public class CommitLog {
         long elapsedTimeInLock = 0;
 
         MappedFile unlockMappedFile = null;
+        // 通过mappedFileQueue获取最新的MappedFile文件
         MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile();
 
+        // 加锁准备写入消息
         putMessageLock.lock(); //spin or ReentrantLock ,depending on store config
         try {
             long beginLockTimestamp = this.defaultMessageStore.getSystemClock().now();
@@ -836,6 +849,7 @@ public class CommitLog {
             // global
             msg.setStoreTimestamp(beginLockTimestamp);
 
+            // 针对mappedFile为null的情况重新获取
             if (null == mappedFile || mappedFile.isFull()) {
                 mappedFile = this.mappedFileQueue.getLastMappedFile(0); // Mark: NewFile may be cause noise
             }
@@ -845,6 +859,7 @@ public class CommitLog {
                 return new PutMessageResult(PutMessageStatus.CREATE_MAPEDFILE_FAILED, null);
             }
 
+            // 通过appendMessage将消息添加到mappedFile当中
             result = mappedFile.appendMessage(msg, this.appendMessageCallback);
             switch (result.getStatus()) {
                 case PUT_OK:
@@ -893,6 +908,7 @@ public class CommitLog {
         storeStatsService.getSinglePutMessageTopicTimesTotal(msg.getTopic()).incrementAndGet();
         storeStatsService.getSinglePutMessageTopicSizeTotal(topic).addAndGet(result.getWroteBytes());
 
+        // 同步刷盘落磁盘
         handleDiskFlush(result, putMessageResult, msg);
         handleHA(result, putMessageResult, msg);
 
@@ -1520,6 +1536,7 @@ public class CommitLog {
             return msgStoreItemMemory;
         }
 
+        //https://www.jianshu.com/p/5f8b93f95842
         public AppendMessageResult doAppend(final long fileFromOffset, final ByteBuffer byteBuffer, final int maxBlank,
             final MessageExtBrokerInner msgInner) {
             // STORETIMESTAMP + STOREHOSTADDRESS + OFFSET <br>

@@ -1,0 +1,7 @@
+https://upload-images.jianshu.io/upload_images/6302559-72420435763a7931.jpg
+
+消息接收入口 SendMessageProcessor。
+消息保存入口 DefaultMessageStore。
+消息的保存流程按照CommitLog、MappedFileQueue、MappedFile的顺序依次保存。
+
+

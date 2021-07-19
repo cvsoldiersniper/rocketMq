@@ -409,7 +409,9 @@ public class MappedFile extends ReferenceResource {
     }
 
     public SelectMappedBufferResult selectMappedBuffer(int pos) {
+        // 获取能够读取的数据的最大位移
         int readPosition = getReadPosition();
+        // 获取从pos 到 readPosition之间的数据
         if (pos < readPosition && pos >= 0) {
             if (this.hold()) {
                 ByteBuffer byteBuffer = this.mappedByteBuffer.slice();

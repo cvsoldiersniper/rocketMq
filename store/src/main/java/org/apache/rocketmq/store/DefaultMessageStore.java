@@ -262,6 +262,7 @@ public class DefaultMessageStore implements MessageStore {
             log.info("[SetReputOffset] maxPhysicalPosInLogicQueue={} clMinOffset={} clMaxOffset={} clConfirmedOffset={}",
                 maxPhysicalPosInLogicQueue, this.commitLog.getMinOffset(), this.commitLog.getMaxOffset(), this.commitLog.getConfirmOffset());
             this.reputMessageService.setReputFromOffset(maxPhysicalPosInLogicQueue);
+            // 启动reputMessageService 负责读取commitLog信息并添加到consumeQueue当中。
             this.reputMessageService.start();
 
             /**
@@ -283,6 +284,7 @@ public class DefaultMessageStore implements MessageStore {
             this.handleScheduleMessageService(messageStoreConfig.getBrokerRole());
         }
 
+        // 2、启动flushConsumeQueueService
         this.flushConsumeQueueService.start();
         this.commitLog.start();
         this.storeStatsService.start();
@@ -1878,6 +1880,11 @@ public class DefaultMessageStore implements MessageStore {
             return this.reputFromOffset < DefaultMessageStore.this.commitLog.getMaxOffset();
         }
 
+        /**
+         * ReputMessageService#run内部执行doReput方法。
+         * doReput方法负责从commitLog获取消息并将位移等相关信息保存到consumeQueue。
+         * 每次从reputFromOffset位置开始读取commitLog
+         */
         private void doReput() {
             if (this.reputFromOffset < DefaultMessageStore.this.commitLog.getMinOffset()) {
                 log.warn("The reputFromOffset={} is smaller than minPyOffset={}, this usually indicate that the dispatch behind too much and the commitlog has expired.",
@@ -1891,7 +1898,10 @@ public class DefaultMessageStore implements MessageStore {
                     break;
                 }
 
+                // 1、获取待put的数据对象SelectMappedBufferResult
                 SelectMappedBufferResult result = DefaultMessageStore.this.commitLog.getData(reputFromOffset);
+
+                // 2、解析获取的数据结果
                 if (result != null) {
                     try {
                         this.reputFromOffset = result.getStartOffset();
@@ -1903,6 +1913,7 @@ public class DefaultMessageStore implements MessageStore {
 
                             if (dispatchRequest.isSuccess()) {
                                 if (size > 0) {
+                                    // 3、保存索引数据到consumeQueue
                                     DefaultMessageStore.this.doDispatch(dispatchRequest);
 
                                     if (BrokerRole.SLAVE != DefaultMessageStore.this.getMessageStoreConfig().getBrokerRole()
